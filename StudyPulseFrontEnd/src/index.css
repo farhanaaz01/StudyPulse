@@ -1,0 +1,106 @@
+:root {
+  color: #dde2f8;
+  background: #0d1322;
+  font-family: Inter, system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 70% 0%, rgba(37, 99, 235, 0.08), transparent 32%),
+    #0d1322;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.glass-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(25, 31, 47, 0.66);
+  backdrop-filter: blur(12px);
+  transition: border-color 0.3s ease, background 0.3s ease;
+}
+
+.glass-card:hover {
+  border-color: rgba(180, 197, 255, 0.2);
+  background: rgba(25, 31, 47, 0.82);
+}
+
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+.filled-icon {
+  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 0.5rem;
+  overflow: hidden;
+  appearance: none;
+  border: 0;
+  border-radius: 9999px;
+  background: #2f3445;
+}
+
+.progress-bar::-webkit-progress-bar {
+  border-radius: 9999px;
+  background: #2f3445;
+}
+
+.progress-bar::-webkit-progress-value {
+  border-radius: 9999px;
+  background: #b4c5ff;
+}
+
+.progress-bar::-moz-progress-bar {
+  border-radius: 9999px;
+  background: #b4c5ff;
+}
+
+.timer-progress {
+  height: 0.25rem;
+  border-radius: 0;
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #111827 0%, #1f2937 50%, #111827 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 10px;
+  background: #2f3445;
+}
