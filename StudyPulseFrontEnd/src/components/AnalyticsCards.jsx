@@ -4,6 +4,7 @@ function AnalyticsCards({
   averageDailyTime = "0h 0m",
   totalHours = "0 hrs",
   longestSession = "0h 0m",
+  periodLabel = "Last 7 days",
 }) {
   const cards = [
     {
@@ -25,17 +26,21 @@ function AnalyticsCards({
       label: "Avg Daily Time",
       value: averageDailyTime,
       icon: "timer",
-      note: "Past 7 days",
+      note: periodLabel,
       iconClass: "bg-[#0566d9]/20 text-[#adc6ff]",
-      footer: <p className="mt-4 text-sm text-[#c3c6d7]">Based on completed sessions</p>,
+      footer: (
+        <p className="mt-4 text-sm text-[#c3c6d7]">Based on selected period</p>
+      ),
     },
     {
-      label: "Total Hours",
+      label: "Period Total",
       value: totalHours,
       icon: "equalizer",
-      note: "Month",
+      note: periodLabel,
       iconClass: "bg-[#585be6]/20 text-[#c0c1ff]",
-      footer: <p className="mt-4 text-sm text-[#c3c6d7]">Current calendar month</p>,
+      footer: (
+        <p className="mt-4 text-sm text-[#c3c6d7]">Completed session time</p>
+      ),
     },
     {
       label: "Longest Session",

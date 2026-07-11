@@ -1,44 +1,42 @@
 package com.studypulse.security;
 
-import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
+import io.jsonwebtoken.security.Keys;
+
 @Service
 public class JwtService {
 
-    private static final String SECRET_KEY =
-            "studypulse-secret-key-studypulse-secret-key-123456";
+    private final Key signingKey;
+    private final long expirationTime;
 
-    private static final long EXPIRATION_TIME =
-            1000L * 60 * 60 * 24; // 24 hours
-
-    private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(
-                SECRET_KEY.getBytes(StandardCharsets.UTF_8)
-        );
+    public JwtService(
+            @Value("${studypulse.jwt.secret}") String secretKey,
+            @Value("${studypulse.jwt.expiration-ms:86400000}") long expirationTime
+    ) {
+        this.signingKey = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+        this.expirationTime = expirationTime;
     }
 
     public String generateToken(String email) {
-
         return Jwts.builder()
                 .setSubject(email)
                 .setIssuedAt(new Date())
-                .setExpiration(
-                        new Date(System.currentTimeMillis() + EXPIRATION_TIME)
-                )
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
+                .signWith(signingKey, SignatureAlgorithm.HS256)
                 .compact();
     }
 
     public String extractEmail(String token) {
-
         return Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
+                .setSigningKey(signingKey)
                 .build()
                 .parseClaimsJws(token)
                 .getBody()
@@ -46,7 +44,6 @@ public class JwtService {
     }
 
     public boolean isTokenValid(String token) {
-
         try {
             extractEmail(token);
             return true;

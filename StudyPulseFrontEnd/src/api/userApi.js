@@ -1,13 +1,13 @@
-import axios from "axios";
+import apiClient from "./client";
 
-const API = "http://localhost:8080/api/users";
+export const getProfileApi = () => apiClient.get("/users/profile");
 
-export const getCurrentUserApi = async () => {
-  const token = localStorage.getItem("token");
-
-  return axios.get(`${API}/me`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+export const updateProfileApi = ({ username, email, currentPassword }) =>
+  apiClient.put("/users/profile", {
+    username,
+    email,
+    currentPassword: currentPassword || undefined,
   });
-};
+
+export const updatePasswordApi = (oldPassword, newPassword) =>
+  apiClient.put("/users/settings/password", { oldPassword, newPassword });

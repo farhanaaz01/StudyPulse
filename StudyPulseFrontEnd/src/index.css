@@ -104,3 +104,12 @@ button:disabled {
   border-radius: 10px;
   background: #2f3445;
 }
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #0d1322 inset;
+  -webkit-text-fill-color: #dde2f8;
+  caret-color: #dde2f8;
+  transition: background-color 9999s ease-in-out 0s;
+}

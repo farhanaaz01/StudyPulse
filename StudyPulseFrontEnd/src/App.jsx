@@ -10,7 +10,7 @@ import Analytics from "./pages/Analytics";
 import Goals from "./pages/Goals";
 import History from "./pages/History";
 import Profile from "./pages/Profile";
-
+import Settings from "./pages/Settings";
 function App() {
   return (
     <Routes>
@@ -34,6 +34,7 @@ function App() {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/goals" element={<Goals />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
 
       {/* Fallback */}

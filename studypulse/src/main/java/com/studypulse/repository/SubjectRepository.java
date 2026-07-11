@@ -11,6 +11,8 @@ public interface SubjectRepository
 
     List<Subject> findByUser(User user);
 
-
-
+    boolean existsByNameIgnoreCaseAndUser(
+            String name,
+            User user
+    );
 }

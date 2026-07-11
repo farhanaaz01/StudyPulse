@@ -1,132 +1,226 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getHistoryApi } from "../api/sessionApi";
-import { getCurrentUserApi } from "../api/userApi";
-import ProfileStats from "../components/ProfileStats";
-import ProfileSummary from "../components/ProfileSummary";
+import { useEffect, useState } from "react";
+import { getProfileApi, updateProfileApi } from "../api/userApi";
+import { getApiErrorMessage } from "../utils/apiError";
 
-const fallbackProfile = {
-  name: "StudyPulse Student",
-  email: "student@studypulse.local",
-  joinedDate: "Recently",
-};
+const inputClassName =
+  "w-full rounded-xl border border-white/10 bg-[#0d1322] px-4 py-3 text-[#dde2f8] placeholder-[#8d90a0] transition focus:border-[#b4c5ff]/50 focus:outline-none focus:ring-2 focus:ring-[#b4c5ff]/20";
 
-const toDate = (value) => {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
-const formatDate = (value) => {
-  const date = toDate(value);
-  if (!date) return value || "Not available";
-
-  return date.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-};
-
-const formatDuration = (seconds = 0) => {
-  const safeSeconds = Number(seconds) || 0;
-  const hours = Math.floor(safeSeconds / 3600);
-  const minutes = Math.floor((safeSeconds % 3600) / 60);
-  return `${hours}h ${minutes}m`;
-};
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
 function Profile() {
-  const [profile, setProfile] = useState(fallbackProfile);
-  const [sessions, setSessions] = useState([]);
+  const [profile, setProfile] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [loading, setLoading] = useState(true);
-  const [isFallback, setIsFallback] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState({ type: "", text: "" });
 
-  const fetchProfile = useCallback(async () => {
+  const emailChanged =
+    profile && editEmail.trim().toLowerCase() !== profile.email?.toLowerCase();
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  async function fetchProfile() {
+    setLoading(true);
+
     try {
-      const [profileResponse, historyResponse] = await Promise.allSettled([
-        getCurrentUserApi(),
-        getHistoryApi(),
-      ]);
+      const response = await getProfileApi();
+      const data = response.data;
 
-      if (profileResponse.status === "fulfilled") {
-        setProfile({
-          ...fallbackProfile,
-          ...profileResponse.value.data,
-        });
-      } else {
-        setIsFallback(true);
-      }
-
-      if (historyResponse.status === "fulfilled" && Array.isArray(historyResponse.value.data)) {
-        setSessions(historyResponse.value.data);
-      }
+      setProfile(data);
+      setEditName(data.username || "");
+      setEditEmail(data.email || "");
     } catch (error) {
-      console.error(error);
-      setIsFallback(true);
+      setMessage({
+        type: "error",
+        text: getApiErrorMessage(error, "Unable to load profile."),
+      });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }
 
-  useEffect(() => {
-    const timeoutId = setTimeout(fetchProfile, 0);
-    return () => clearTimeout(timeoutId);
-  }, [fetchProfile]);
+  const handleCancel = () => {
+    setEditName(profile.username || "");
+    setEditEmail(profile.email || "");
+    setCurrentPassword("");
+    setIsEditing(false);
+    setMessage({ type: "", text: "" });
+  };
 
-  const totalStudySeconds = useMemo(() => {
-    return sessions.reduce(
-      (total, session) => total + Number(session.durationSeconds ?? session.duration ?? 0),
-      0
-    );
-  }, [sessions]);
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setMessage({ type: "", text: "" });
 
-  const joinedDate = useMemo(() => {
-    if (profile.joinedDate || profile.createdAt) {
-      return formatDate(profile.joinedDate ?? profile.createdAt);
+    const username = editName.trim();
+    const email = editEmail.trim().toLowerCase();
+
+    if (username.length < 2) {
+      setMessage({ type: "error", text: "Username must be at least 2 characters." });
+      return;
     }
 
-    const firstSessionDate = sessions
-      .map((session) => toDate(session.date ?? session.createdAt ?? session.startTime))
-      .filter(Boolean)
-      .sort((a, b) => a - b)[0];
+    if (!isValidEmail(email)) {
+      setMessage({ type: "error", text: "Enter a valid email address." });
+      return;
+    }
 
-    return firstSessionDate ? formatDate(firstSessionDate) : "Not available";
-  }, [profile, sessions]);
+    if (emailChanged && !currentPassword) {
+      setMessage({
+        type: "error",
+        text: "Enter your current password to change your email.",
+      });
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const response = await updateProfileApi({
+        username,
+        email,
+        currentPassword: emailChanged ? currentPassword : undefined,
+      });
+
+      setProfile(response.data);
+      setIsEditing(false);
+      setCurrentPassword("");
+      setMessage({ type: "success", text: "Profile updated successfully." });
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: getApiErrorMessage(error, "Unable to update profile."),
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+        <p className="text-[#c3c6d7]">Loading profile...</p>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+        <p className="text-[#ffb4ab]">{message.text || "Unable to load profile."}</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
-      {loading ? (
-        <section className="glass-card rounded-2xl p-8">
-          <div className="mb-6 h-24 w-24 rounded-3xl shimmer" />
-          <div className="h-8 w-64 rounded-full shimmer" />
-          <div className="mt-4 h-5 w-80 max-w-full rounded-full shimmer" />
-        </section>
-      ) : (
-        <ProfileSummary
-          name={profile.name || fallbackProfile.name}
-          email={profile.email || fallbackProfile.email}
-          joinedDate={joinedDate}
-          isFallback={isFallback}
-        />
+    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-[#dde2f8]">Profile</h1>
+        <p className="mt-1 text-sm text-[#c3c6d7]">Manage your account details</p>
+      </div>
+
+      {message.text && (
+        <div
+          role="alert"
+          className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
+            message.type === "error"
+              ? "border-[#ffb4ab]/30 bg-[#ffb4ab]/10 text-[#ffb4ab]"
+              : "border-[#b4c5ff]/30 bg-[#b4c5ff]/10 text-[#b4c5ff]"
+          }`}
+        >
+          {message.text}
+        </div>
       )}
 
-      <ProfileStats
-        totalSessions={loading ? "..." : sessions.length}
-        totalStudyTime={loading ? "..." : formatDuration(totalStudySeconds)}
-      />
-
-      <section className="glass-card rounded-2xl p-6">
-        <div className="flex items-center gap-3">
-          <span className="rounded-full bg-[#b4c5ff]/10 p-2 text-[#b4c5ff]">
-            <span className="material-symbols-outlined">verified_user</span>
-          </span>
-          <div>
-            <h2 className="font-semibold text-[#dde2f8]">JWT Secured Profile</h2>
-            <p className="text-sm text-[#c3c6d7]">
-              Profile details are loaded with your existing authenticated StudyPulse session.
-            </p>
+      <div className="glass-card rounded-xl p-8">
+        {!isEditing ? (
+          <div className="space-y-6">
+            <div>
+              <label className="mb-1 block text-sm text-[#c3c6d7]">Username</label>
+              <span className="text-lg font-medium text-[#dde2f8]">{profile.username}</span>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-[#c3c6d7]">Email Address</label>
+              <span className="text-lg font-medium text-[#dde2f8]">{profile.email}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsEditing(true)}
+              className="rounded-lg bg-[#2563eb] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#1d4ed8]"
+            >
+              Edit Profile
+            </button>
           </div>
-        </div>
-      </section>
+        ) : (
+          <form onSubmit={handleSave} className="space-y-5">
+            <div>
+              <label className="mb-2 block text-sm text-[#c3c6d7]">Username</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className={inputClassName}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm text-[#c3c6d7]">Email Address</label>
+              <input
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                className={inputClassName}
+                required
+              />
+            </div>
+
+            {emailChanged && (
+              <div>
+                <label className="mb-2 block text-sm text-[#c3c6d7]">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className={inputClassName}
+                  placeholder="Required to change email"
+                  autoComplete="current-password"
+                  required
+                />
+                <p className="mt-2 text-xs text-[#8d90a0]">
+                  For security, confirm your password before updating your email.
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-lg bg-[#2563eb] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#1d4ed8] disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save Changes"}
+              </button>
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={saving}
+                className="rounded-lg border border-white/10 px-5 py-2 text-sm font-semibold text-[#dde2f8] transition hover:bg-white/5 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

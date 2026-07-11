@@ -1,10 +1,7 @@
-import axios from "axios";
+import apiClient from "./client";
 
-const API = "http://localhost:8080/api/auth";
+export const loginApi = (email, password) =>
+  apiClient.post("/auth/login", { email, password });
 
-export const loginApi = async (email, password) => {
-  return axios.post(`${API}/login`, {
-    email,
-    password,
-  });
-};
+export const signupApi = (name, email, password) =>
+  apiClient.post("/auth/signup", { name, email, password });

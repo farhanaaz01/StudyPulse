@@ -1,0 +1,12 @@
+# Copy to application-local.properties or set as environment variables.
+# Spring Boot loads application-local.properties automatically when present.
+
+STUDYPULSE_DB_URL=jdbc:mysql://localhost:3306/studypulse
+STUDYPULSE_DB_USERNAME=root
+STUDYPULSE_DB_PASSWORD=822101
+
+STUDYPULSE_JWT_SECRET=replace-with-a-long-random-secret-at-least-32-characters
+STUDYPULSE_JWT_EXPIRATION_MS=86400000
+
+STUDYPULSE_SHOW_SQL=false
+STUDYPULSE_SERVER_PORT=8080

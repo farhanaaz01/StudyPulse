@@ -1,144 +1,274 @@
+import { useCallback, useEffect, useState } from "react";
 import GoalCard from "../components/GoalCard";
+import { getGoalsApi, deleteGoalApi, createGoalApi } from "../api/goalApi";
+import { getApiErrorMessage } from "../utils/apiError";
+import {
+  formatGoalProgress,
+  getGoalByType,
+  getGoalSummaryLabel,
+} from "../utils/goalUtils";
 
-const defaultGoals = [
-  {
-    id: "daily-focus",
-    period: "Daily",
-    title: "Focus Sessions",
-    description: "Complete 6 Pomodoro sessions",
-    value: 4.5,
-    max: 6,
-    progressLabel: "4/6 Sessions",
-    statusLabel: "2 to go",
-    accent: "primary",
-  },
-  {
-    id: "weekly-hours",
-    period: "Weekly",
-    title: "Deep Work Hours",
-    description: "Total 25 hours intensive study",
-    value: 10.5,
-    max: 25,
-    progressLabel: "10.5/25 Hours",
-    statusLabel: "Progressing",
-    accent: "secondary",
-  },
-  {
-    id: "monthly-course",
-    period: "Monthly",
-    title: "Course Completion",
-    description: "Advanced Quantum Physics",
-    value: 18,
-    max: 20,
-    progressLabel: "18/20 Modules",
-    statusLabel: "Near Finish",
-    accent: "tertiary",
-  },
-];
-
-const defaultAchievements = [
-  {
-    id: "three-day",
-    title: "3 Day Streak",
-    description: "Consistency Starter",
-    icon: "local_fire_department",
-    iconClass: "bg-[#b4c5ff]/10 text-[#b4c5ff]",
-  },
-  {
-    id: "seven-day",
-    title: "7 Day Streak",
-    description: "The Momentum King",
-    icon: "bolt",
-    iconClass: "bg-[#0566d9]/20 text-[#adc6ff]",
-  },
-  {
-    id: "thirty-day",
-    title: "30 Day Streak",
-    description: "Master of Habits",
-    icon: "workspace_premium",
-    iconClass: "bg-[#585be6]/20 text-[#c0c1ff]",
-  },
-  {
-    id: "study-warrior",
-    title: "Study Warrior",
-    description: "500+ Hours Logged",
-    icon: "swords",
-    iconClass: "bg-[#2563eb]/20 text-[#b4c5ff]",
-  },
-];
-
-function Goals({
-  goals = defaultGoals,
-  achievements = defaultAchievements,
-  onNewGoal,
-  onCreateMilestone,
-}) {
+function SummaryCard({ label, goal, loading }) {
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-      <section className="mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+    <div className="glass-card rounded-xl p-5">
+      <p className="text-sm text-[#c3c6d7]">{label}</p>
+      {loading ? (
+        <h2 className="mt-2 text-2xl font-bold text-white">...</h2>
+      ) : goal ? (
+        <>
+          <h2 className="mt-2 text-2xl font-bold text-white">
+            {formatGoalProgress(goal)}
+          </h2>
+          <p className="mt-1 text-sm text-[#b4c5ff]">
+            {getGoalSummaryLabel(goal)}
+          </p>
+        </>
+      ) : (
+        <>
+          <h2 className="mt-2 text-lg font-semibold text-[#8d90a0]">
+            Not set
+          </h2>
+          <p className="mt-1 text-sm text-[#c3c6d7]">
+            Create a {label.toLowerCase()} to track progress
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Goals() {
+  const [showModal, setShowModal] = useState(false);
+  const [goals, setGoals] = useState([]);
+  const [type, setType] = useState("WEEKLY");
+  const [targetValue, setTargetValue] = useState("");
+  const [targetUnit, setTargetUnit] = useState("HOURS");
+  const [subjectName, setSubjectName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [saveError, setSaveError] = useState("");
+
+  const fetchGoals = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await getGoalsApi();
+      setGoals(response.data);
+    } catch (err) {
+      console.error(err);
+      setError(getApiErrorMessage(err, "Unable to load goals."));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchGoals();
+  }, [fetchGoals]);
+
+  const handleCreateGoal = async () => {
+    if (!targetValue || Number(targetValue) <= 0) {
+      setSaveError("Enter a target value greater than 0.");
+      return;
+    }
+
+    if (type === "SUBJECT" && !subjectName.trim()) {
+      setSaveError("Enter a subject name for this goal.");
+      return;
+    }
+
+    setSaveError("");
+
+    try {
+      const goal = {
+        title:
+          type === "WEEKLY"
+            ? "Weekly Study Goal"
+            : type === "SUBJECT"
+              ? "Subject Goal"
+              : "Study Streak Goal",
+        type,
+        targetValue: Number(targetValue),
+        targetUnit: type === "STREAK" ? "DAYS" : targetUnit,
+        subjectName: type === "SUBJECT" ? subjectName.trim() : "",
+      };
+
+      await createGoalApi(goal);
+      setShowModal(false);
+      setType("WEEKLY");
+      setTargetValue("");
+      setTargetUnit("HOURS");
+      setSubjectName("");
+      await fetchGoals();
+    } catch (err) {
+      console.error(err);
+      setSaveError(getApiErrorMessage(err, "Unable to create goal."));
+    }
+  };
+
+  const handleDeleteGoal = async (id) => {
+    try {
+      await deleteGoalApi(id);
+      await fetchGoals();
+    } catch (err) {
+      console.error(err);
+      setError(getApiErrorMessage(err, "Unable to delete goal."));
+    }
+  };
+
+  const weeklyGoal = getGoalByType(goals, "WEEKLY");
+  const subjectGoal = getGoalByType(goals, "SUBJECT");
+  const streakGoal = getGoalByType(goals, "STREAK");
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-6">
+      <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="mb-1 text-3xl font-semibold text-[#dde2f8]">Study Goals</h1>
-          <p className="text-[#c3c6d7]">Precision tracking for your academic excellence.</p>
+          <h1 className="text-3xl font-bold text-[#dde2f8]">Study Goals</h1>
+          <p className="text-[#c3c6d7]">
+            Track and manage your learning targets
+          </p>
         </div>
+
         <button
           type="button"
-          onClick={onNewGoal}
-          className="flex items-center justify-center gap-2 rounded-xl bg-[#2563eb] px-6 py-2 font-semibold text-[#eeefff] shadow-lg transition hover:bg-[#2563eb]/90 active:scale-95"
+          onClick={() => {
+            setSaveError("");
+            setShowModal(true);
+          }}
+          className="rounded-lg bg-[#2563eb] px-5 py-2 font-semibold text-white"
         >
-          <span className="material-symbols-outlined">add</span>
-          New Goal
+          + New Goal
         </button>
-      </section>
+      </div>
 
-      <section className="mb-12 grid grid-cols-1 gap-6 md:grid-cols-3">
-        {goals.map((goal) => (
-          <GoalCard key={goal.id || goal.title} {...goal} />
-        ))}
-      </section>
+      {error && (
+        <div
+          role="alert"
+          className="mb-6 rounded-xl border border-[#ffb4ab]/30 bg-[#ffb4ab]/10 px-4 py-3 text-sm text-[#ffb4ab]"
+        >
+          {error}
+        </div>
+      )}
 
-      <section className="mb-12">
-        <h2 className="mb-6 flex items-center gap-2 text-2xl font-semibold text-[#dde2f8]">
-          <span className="material-symbols-outlined text-[#b4c5ff]">military_tech</span>
-          Achievement Badges
-        </h2>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
-          {achievements.map((achievement) => (
-            <article
-              key={achievement.id || achievement.title}
-              className="glass-card group flex flex-col items-center rounded-2xl p-6 text-center"
-            >
-              <div
-                className={`mb-4 flex h-20 w-20 items-center justify-center rounded-full transition duration-300 group-hover:scale-110 ${achievement.iconClass}`}
-              >
-                <span className="material-symbols-outlined filled-icon text-4xl">
-                  {achievement.icon}
-                </span>
-              </div>
-              <h3 className="text-lg font-bold text-[#dde2f8]">{achievement.title}</h3>
-              <p className="text-sm text-[#c3c6d7]">{achievement.description}</p>
-            </article>
+      <div className="mb-8 grid gap-4 md:grid-cols-3">
+        <SummaryCard label="Weekly Goal" goal={weeklyGoal} loading={loading} />
+        <SummaryCard label="Subject Goal" goal={subjectGoal} loading={loading} />
+        <SummaryCard label="Study Streak" goal={streakGoal} loading={loading} />
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-[#c3c6d7]">Loading goals...</p>
+      ) : goals.length > 0 ? (
+        <div className="grid gap-6 md:grid-cols-3">
+          {goals.map((goal) => (
+            <GoalCard key={goal.id} goal={goal} onDelete={handleDeleteGoal} />
           ))}
         </div>
-      </section>
-
-      <section className="mt-12 flex flex-col items-center justify-center rounded-3xl border border-dashed border-white/10 px-6 py-16 text-center sm:p-20">
-        <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-[#242a3a] text-[#c3c6d7]/30">
-          <span className="material-symbols-outlined text-6xl">target</span>
+      ) : (
+        <div className="rounded-xl border border-dashed border-white/10 p-10 text-center">
+          <p className="text-[#c3c6d7]">
+            No goals yet. Create your first goal to start tracking progress.
+          </p>
         </div>
-        <h2 className="mb-2 text-2xl font-semibold text-[#dde2f8]">No Pending Custom Goals</h2>
-        <p className="mx-auto mb-6 max-w-md text-[#c3c6d7]">
-          You&apos;ve completed your custom targets. Set a new milestone to challenge your
-          academic limits and track your ascent.
-        </p>
-        <button
-          type="button"
-          onClick={onCreateMilestone}
-          className="flex items-center gap-1 text-[#b4c5ff] transition hover:underline"
-        >
-          <span className="material-symbols-outlined text-base">add_circle</span>
-          Create custom milestone
-        </button>
-      </section>
+      )}
+
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-md rounded-xl bg-[#151b2b] p-6">
+            <h2 className="mb-5 text-xl font-semibold text-white">Create Goal</h2>
+
+            {saveError && (
+              <p className="mb-4 rounded-lg border border-[#ffb4ab]/30 bg-[#ffb4ab]/10 px-3 py-2 text-sm text-[#ffb4ab]">
+                {saveError}
+              </p>
+            )}
+
+            <div className="mb-4">
+              <label className="mb-2 block text-sm text-[#c3c6d7]">Goal Type</label>
+              <select
+                value={type}
+                onChange={(e) => {
+                  const nextType = e.target.value;
+                  setType(nextType);
+                  setTargetUnit(nextType === "STREAK" ? "DAYS" : "HOURS");
+                }}
+                className="w-full rounded-lg border border-white/10 bg-[#0d1322] p-3 text-white"
+              >
+                <option value="WEEKLY">Weekly Study Goal</option>
+                <option value="SUBJECT">Subject Goal (this week)</option>
+                <option value="STREAK">Study Streak Goal (days)</option>
+              </select>
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-2 block text-sm text-[#c3c6d7]">
+                Target Value
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  value={targetValue}
+                  onChange={(e) => setTargetValue(e.target.value)}
+                  className="w-full rounded-lg border border-white/10 bg-[#0d1322] p-3 text-white"
+                />
+                {type !== "STREAK" && (
+                  <select
+                    value={targetUnit}
+                    onChange={(e) => setTargetUnit(e.target.value)}
+                    className="rounded-lg border border-white/10 bg-[#0d1322] px-3 py-3 text-white"
+                  >
+                    <option value="HOURS">Hours</option>
+                    <option value="MINUTES">Minutes</option>
+                  </select>
+                )}
+                {type === "STREAK" && (
+                  <span className="flex items-center rounded-lg border border-white/10 bg-[#0d1322] px-4 text-sm text-[#c3c6d7]">
+                    Days
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {type === "SUBJECT" && (
+              <div className="mb-5">
+                <label className="mb-2 block text-sm text-[#c3c6d7]">
+                  Subject Name
+                </label>
+                <input
+                  type="text"
+                  value={subjectName}
+                  onChange={(e) => setSubjectName(e.target.value)}
+                  placeholder="Java"
+                  className="w-full rounded-lg border border-white/10 bg-[#0d1322] p-3 text-white"
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowModal(false);
+                  setSaveError("");
+                }}
+                className="rounded-lg border border-white/10 px-4 py-2 text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateGoal}
+                className="rounded-lg bg-[#2563eb] px-4 py-2 font-semibold text-white"
+              >
+                Save Goal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

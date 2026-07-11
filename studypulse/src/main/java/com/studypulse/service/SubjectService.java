@@ -3,6 +3,7 @@ package com.studypulse.service;
 import com.studypulse.dto.SubjectRequest;
 import com.studypulse.entity.Subject;
 import com.studypulse.entity.User;
+import com.studypulse.exception.BadRequestException;
 import com.studypulse.repository.SubjectRepository;
 import com.studypulse.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -31,13 +32,25 @@ public class SubjectService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow();
 
+        String subjectName = request.getName().trim();
+
+        if (
+                subjectRepository.existsByNameIgnoreCaseAndUser(
+                        subjectName,
+                        user
+                )
+        ) {
+            throw new BadRequestException("Subject already exists");
+        }
+
         Subject subject = Subject.builder()
-                .name(request.getName())
+                .name(subjectName)
                 .user(user)
                 .build();
 
         return subjectRepository.save(subject);
     }
+
     public List<Subject> getSubjects(String email) {
 
         User user = userRepository

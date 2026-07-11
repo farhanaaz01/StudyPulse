@@ -1,11 +1,13 @@
 package com.studypulse.service;
 
-import com.studypulse.dto.*;
+import com.studypulse.dto.AuthResponse;
+import com.studypulse.dto.LoginRequest;
+import com.studypulse.dto.SignupRequest;
 import com.studypulse.entity.User;
+import com.studypulse.exception.BadRequestException;
 import com.studypulse.repository.UserRepository;
 import com.studypulse.security.JwtService;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import com.studypulse.dto.LoginRequest;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -26,16 +28,24 @@ public class AuthService {
     }
 
     public AuthResponse signup(SignupRequest request) {
-
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
+        if (request.getName() == null || request.getName().trim().isBlank()) {
+            throw new BadRequestException("Name is required");
         }
 
-        User user = User.builder()
-                .name(request.getName())
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .build();
+        if (request.getPassword() == null || request.getPassword().length() < 6) {
+            throw new BadRequestException("Password must be at least 6 characters");
+        }
+
+        String email = normalizeEmail(request.getEmail());
+
+        if (userRepository.existsByEmail(email)) {
+            throw new BadRequestException("Email already exists");
+        }
+
+        User user = new User();
+        user.setUsername(request.getName().trim());
+        user.setEmail(email);
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
 
         userRepository.save(user);
 
@@ -46,28 +56,38 @@ public class AuthService {
                 "Signup successful"
         );
     }
+
     public AuthResponse login(LoginRequest request) {
+        String email = normalizeEmail(request.getEmail());
 
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
-                        new RuntimeException("User not found"));
+                        new BadRequestException(
+                                "No account found for this email. Please sign up first."
+                        ));
 
-        boolean isPasswordCorrect =
-                passwordEncoder.matches(
-                        request.getPassword(),
-                        user.getPassword()
-                );
+        boolean isPasswordCorrect = passwordEncoder.matches(
+                request.getPassword(),
+                user.getPassword()
+        );
 
         if (!isPasswordCorrect) {
-            throw new RuntimeException("Invalid password");
+            throw new BadRequestException("Invalid email or password");
         }
 
-        String token =
-                jwtService.generateToken(user.getEmail());
+        String token = jwtService.generateToken(user.getEmail());
 
         return new AuthResponse(
                 token,
                 "Login successful"
         );
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null || email.isBlank()) {
+            throw new BadRequestException("Email is required");
+        }
+
+        return email.trim().toLowerCase();
     }
 }

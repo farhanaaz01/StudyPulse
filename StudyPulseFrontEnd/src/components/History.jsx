@@ -26,7 +26,7 @@ function History({ sessions = [], formatDuration, formatDate, formatTime }) {
             <p className="text-sm text-[#c3c6d7]">Latest study sessions appear first.</p>
           </div>
           <span className="rounded-full bg-[#b4c5ff]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#b4c5ff]">
-            {sessions.length} Sessions
+            {sessions.length} {sessions.length === 1 ? "Session" : "Sessions"}
           </span>
         </div>
       </div>
