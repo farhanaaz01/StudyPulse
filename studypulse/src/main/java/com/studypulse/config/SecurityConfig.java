@@ -1,6 +1,7 @@
 package com.studypulse.config;
 
 import com.studypulse.security.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -11,17 +12,22 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final String extraCorsOrigins;
 
     public SecurityConfig(
-            JwtAuthenticationFilter jwtAuthenticationFilter
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            @Value("${studypulse.cors.origins:}") String extraCorsOrigins
     ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.extraCorsOrigins = extraCorsOrigins;
     }
 
     @Bean
@@ -59,13 +65,21 @@ public class SecurityConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Allow any local Vite dev port (5173, 5174, etc.)
-        configuration.setAllowedOriginPatterns(
+        List<String> origins = new ArrayList<>(
                 List.of(
                         "http://localhost:*",
                         "http://127.0.0.1:*"
                 )
         );
+
+        if (extraCorsOrigins != null && !extraCorsOrigins.isBlank()) {
+            Arrays.stream(extraCorsOrigins.split(","))
+                    .map(String::trim)
+                    .filter(origin -> !origin.isEmpty())
+                    .forEach(origins::add);
+        }
+
+        configuration.setAllowedOriginPatterns(origins);
 
         configuration.setAllowedMethods(
                 List.of(
